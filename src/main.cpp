@@ -2,6 +2,7 @@
 #include <WiFi.h>
 #include "hal.h"
 #include "ui.h"
+#include "search_ui.h"
 #include "spotify_api.h"
 #include "secrets.h"
 #include "settings.h"
@@ -18,6 +19,7 @@ void setup() {
 
   settings::load();          // saved Wi-Fi + PC-bridge / Bluetooth mode
   ui::build();
+  search_ui::begin();
 
   wifi_setup::begin();       // saved Wi-Fi, secrets.h fallback, or the setup portal
   sp_api::begin();
