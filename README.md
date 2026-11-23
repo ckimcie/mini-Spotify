@@ -83,3 +83,31 @@ With the settings button hidden you cannot reopen the Wi-Fi setup page from the 
 
 Secrets live in `include/secrets.h`, which is git-ignored: `WIFI_SSID`, `WIFI_PASS`, `BRIDGE_HOST` and optionally `BRIDGE_PORT` and `BRIDGE_TOKEN`. Wi-Fi and the bridge address saved from the setup page take priority over these values.
 <!-- mini-spotify:end -->
+
+<!-- mini-spotify-stack:begin -->
+## Tech stack
+
+**Hardware**
+- Viewe 2.8" 240x320 touch display board (`UEDX24320028E-WB-A`) with an ESP32-S3: dual core 240 MHz, Wi-Fi, Bluetooth LE, 16 MB flash and octal PSRAM.
+
+**Firmware (C++17)**
+- [PlatformIO](https://platformio.org/) with the Arduino framework for ESP32 (`espressif32` platform pinned to a fixed commit).
+- [LVGL](https://lvgl.io/) 9.5.0 for the UI: player screen, search screen and on-screen keyboard.
+- ESP32_Display_Panel and `esp-lib-utils` for the display, touch and board drivers.
+- [ArduinoJson](https://arduinojson.org/) 7 to parse the bridge's JSON.
+- [JPEGDEC](https://github.com/bitbank2/JPEGDEC) to decode album art into PSRAM.
+- [NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino) 2.x for the Bluetooth HID media remote.
+- ESP32 Arduino libraries: `WiFi`, `HTTPClient`, `WebServer` and `DNSServer` (Wi-Fi setup page), and `Preferences` (settings in NVS).
+- FreeRTOS tasks and queues keep networking and search off the UI loop.
+
+**PC bridge (Python 3)**
+- `http.server` from the standard library serving a small JSON/HTTP API on the LAN.
+- [`playerctl`](https://github.com/altdesktop/playerctl) (MPRIS) to read and control the desktop player.
+- [Pillow](https://python-pillow.org/) (optional) to resize and convert cover art to JPEG.
+- [Spotify Web API](https://developer.spotify.com/documentation/web-api) (client-credentials flow) for track search.
+- `systemd` user service so the bridge starts at login.
+
+**Tooling**
+- Git and GitHub for version control.
+- LVGL's XML UI project in `lvgl_ui/` for editing the layout in the LVGL editor. The firmware builds the screens in C++ and does not load the XML.
+<!-- mini-spotify-stack:end -->
