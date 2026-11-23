@@ -8,8 +8,7 @@
 
     <!-- dark gradient over the bottom of the cover -->
     <lv_obj x="0" y="120" width="240" height="#fade_h" style_bg_color="#c_black"
-            style_bg_grad_color="#c_black" style_bg_grad_dir="ver"
-            style_bg_main_opa="0" style_bg_grad_opa="230"/>
+            style_bg_grad_color="#c_black" style_bg_grad_dir="ver"/>
 
     <!-- title / artist -->
     <lv_label x="0" y="154" width="220" align="top_mid" text="Nothing playing"
@@ -19,7 +18,7 @@
 
     <!-- progress -->
     <lv_slider x="0" y="206" width="208" height="6" align="top_mid" min_value="0" max_value="1000"
-               style_bg_color="#c_track" styles="slider_indicator:indicator slider_knob:knob"/>
+               style_bg_color="#c_track"/>
     <lv_label x="16" y="218" text="0:00" style_text_color="#c_dim"/>
     <lv_label x="-16" y="218" align="top_right" text="0:00" style_text_color="#c_dim"/>
 

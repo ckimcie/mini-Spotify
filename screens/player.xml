@@ -1,0 +1,43 @@
+<screen>
+  <view style_bg_color="#c_bg" style_bg_opa="255">
+
+    <!-- full-width cover placeholder -->
+    <lv_obj x="0" y="0" width="#art_size" height="#art_size" style_bg_color="#c_panel" style_bg_opa="255">
+      <lv_label text="&#xF001;" style_text_color="#c_dim" align="center"/>
+    </lv_obj>
+
+    <!-- dark gradient over the bottom of the cover -->
+    <lv_obj x="0" y="120" width="240" height="#fade_h" style_bg_color="#c_black"
+            style_bg_grad_color="#c_black" style_bg_grad_dir="ver"/>
+
+    <!-- title / artist -->
+    <lv_label x="0" y="154" width="220" align="top_mid" text="Nothing playing"
+              style_text_color="#c_text" style_text_align="center"/>
+    <lv_label x="0" y="180" width="220" align="top_mid" text="Artist"
+              style_text_color="#c_dim" style_text_align="center"/>
+
+    <!-- progress -->
+    <lv_slider x="0" y="206" width="208" height="6" align="top_mid" min_value="0" max_value="1000"
+               style_bg_color="#c_track"/>
+    <lv_label x="16" y="218" text="0:00" style_text_color="#c_dim"/>
+    <lv_label x="-16" y="218" align="top_right" text="0:00" style_text_color="#c_dim"/>
+
+    <!-- corner buttons: mode switch, settings -->
+    <lv_button x="8" y="8" width="34" height="34" style_radius="9999" style_bg_color="#c_black" style_bg_opa="128">
+      <lv_label text="&#xF1EB;" style_text_color="#c_text" align="center"/>
+    </lv_button>
+    <lv_button x="-8" y="8" align="top_right" width="34" height="34" style_radius="9999" style_bg_color="#c_black" style_bg_opa="128">
+      <lv_label text="&#xF013;" style_text_color="#c_text" align="center"/>
+    </lv_button>
+
+    <!-- bottom row: vol-  prev  play  next  vol+ -->
+    <lv_obj x="0" y="#btn_row_y" width="240" height="52" style_bg_opa="0" flex_flow="row"
+            style_flex_main_place="space_evenly" style_flex_cross_place="center">
+      <lv_button width="36" height="36" style_radius="9999" style_bg_color="#c_panel"><lv_label text="&#xF027;" style_text_color="#c_text" align="center"/></lv_button>
+      <lv_button width="42" height="42" style_radius="9999" style_bg_color="#c_panel"><lv_label text="&#xF048;" style_text_color="#c_text" align="center"/></lv_button>
+      <lv_button width="52" height="52" style_radius="9999" style_bg_color="#c_accent"><lv_label text="&#xF04B;" style_text_color="#c_bg" align="center"/></lv_button>
+      <lv_button width="42" height="42" style_radius="9999" style_bg_color="#c_panel"><lv_label text="&#xF051;" style_text_color="#c_text" align="center"/></lv_button>
+      <lv_button width="36" height="36" style_radius="9999" style_bg_color="#c_panel"><lv_label text="&#xF028;" style_text_color="#c_text" align="center"/></lv_button>
+    </lv_obj>
+  </view>
+</screen>

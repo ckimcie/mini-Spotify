@@ -3,3 +3,17 @@
 include/secrets.h
 platformio.pulseon.ini.ref
 __pycache__/
+
+# LVGL Editor generated preview/build files
+preview-bin/
+preview-build/
+mini_Spotify.c
+mini_Spotify.h
+mini_Spotify_gen.c
+mini_Spotify_gen.h
+file_list_gen.cmake
+CMakeLists.txt
+user_config.cmake
+
+# Local backups
+*.bak

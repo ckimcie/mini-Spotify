@@ -1,0 +1,7 @@
+<project name="mini_Spotify" lvgl_version="9.5.0">
+  <targets>
+    <target name="viewe_2_8">
+      <display width="240" height="320"/>
+    </target>
+  </targets>
+</project>
