@@ -6,6 +6,10 @@
 #include "ble_remote.h"
 #include "wifi_setup.h"
 
+#ifndef SHOW_CORNER_BUTTONS
+#define SHOW_CORNER_BUTTONS 0   // 1 = show the mode (Wi-Fi/Bluetooth) and settings buttons
+#endif
+
 #define C_BG     lv_color_hex(UI_C_BG)
 #define C_PANEL  lv_color_hex(UI_C_PANEL)
 #define C_TEXT   lv_color_hex(UI_C_TEXT)
@@ -315,6 +319,10 @@ void build() {
   lv_obj_align(bm, LV_ALIGN_TOP_LEFT, 8, 8);
   lv_obj_t* bs = mkBtn(scr, 34, LV_SYMBOL_SETTINGS, C_BLACK, LV_OPA_50, C_TEXT, onSettings);
   lv_obj_align(bs, LV_ALIGN_TOP_RIGHT, -8, 8);
+#if !SHOW_CORNER_BUTTONS
+  lv_obj_add_flag(bm, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(bs, LV_OBJ_FLAG_HIDDEN);
+#endif
 
   lblBle = lv_label_create(scr);
   lv_obj_set_style_text_font(lblBle, F_SMALL, 0);
