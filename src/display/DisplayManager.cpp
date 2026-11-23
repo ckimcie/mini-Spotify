@@ -1,0 +1,401 @@
+#include "DisplayManager.h"
+
+#include <Arduino.h>
+#include <esp_display_panel.hpp>
+#include "draw/sw/lv_draw_sw_utils.h"
+#include "app_config.h"
+
+using namespace esp_panel::board;
+using namespace esp_panel::drivers;
+
+static constexpr int32_t DISPLAY_WIDTH = PULSEON_UI_WIDTH;
+static constexpr int32_t DISPLAY_HEIGHT = PULSEON_UI_HEIGHT;
+static constexpr int32_t DISPLAY_DRAW_BUFFER_ROWS = 60;
+
+DisplayManager* DisplayManager::instance = nullptr;
+
+bool DisplayManager::begin()
+{
+    Serial.println();
+    Serial.println("[DISPLAY] Initializing VIEWE UEDX24320028E-WB-A...");
+
+    instance = this;
+
+    board = new Board();
+
+    if (board == nullptr)
+    {
+        Serial.println("[DISPLAY] ERROR: Failed to allocate Board");
+        return false;
+    }
+
+    if (!board->init())
+    {
+        Serial.println("[DISPLAY] ERROR: Board init failed");
+        return false;
+    }
+
+    Serial.println("[DISPLAY] Board init OK");
+
+    if (!board->begin())
+    {
+        Serial.println("[DISPLAY] ERROR: Board begin failed");
+        return false;
+    }
+
+    Serial.println("[DISPLAY] Board begin OK");
+
+    lcd = board->getLCD();
+    touch = board->getTouch();
+    backlight = board->getBacklight();
+
+    if (lcd == nullptr)
+    {
+        Serial.println("[DISPLAY] ERROR: LCD object unavailable");
+        return false;
+    }
+
+    Serial.printf(
+        "[DISPLAY] LCD: %dx%d\n",
+        lcd->getFrameWidth(),
+        lcd->getFrameHeight()
+    );
+
+    if (touch != nullptr)
+    {
+        Serial.println("[DISPLAY] Touch driver available");
+    }
+    else
+    {
+        Serial.println("[DISPLAY] Touch driver unavailable");
+    }
+
+    if (backlight != nullptr)
+    {
+        Serial.println("[DISPLAY] Backlight driver available");
+        applyBrightness(userBrightness);
+    }
+
+    /*
+     * LVGL 9 display creation.
+     *
+     * We use a small draw buffer and send completed areas directly
+     * through the official ESP32_Display_Panel LCD driver.
+     */
+    lv_init();
+
+    // Use Arduino's millisecond clock for LVGL 9 timer scheduling.
+    lv_tick_set_cb([]() -> uint32_t {
+        return static_cast<uint32_t>(millis());
+    });
+
+    Serial.printf(
+        "[DISPLAY] LVGL tick source registered; current tick: %lu ms\n",
+        static_cast<unsigned long>(lv_tick_get())
+    );
+
+    lastActivityMs = millis();
+    lv_timer_create(sleepTimerCb, 250, nullptr);
+
+    static lv_color16_t drawBuffer[DISPLAY_WIDTH * DISPLAY_DRAW_BUFFER_ROWS];
+
+    display = lv_display_create(DISPLAY_WIDTH, DISPLAY_HEIGHT);
+
+    if (display == nullptr)
+    {
+        Serial.println("[DISPLAY] ERROR: lv_display_create failed");
+        return false;
+    }
+
+    lv_display_set_color_format(display, LV_COLOR_FORMAT_RGB565);
+    lv_display_set_buffers(
+        display,
+        drawBuffer,
+        nullptr,
+        sizeof(drawBuffer),
+        LV_DISPLAY_RENDER_MODE_PARTIAL
+    );
+
+    lv_display_set_flush_cb(display, flushCallback);
+
+    /*
+     * Touch input.
+     */
+    if (touch != nullptr)
+    {
+        inputDevice = lv_indev_create();
+
+        if (inputDevice != nullptr)
+        {
+            lv_indev_set_type(inputDevice, LV_INDEV_TYPE_POINTER);
+            lv_indev_set_read_cb(inputDevice, touchReadCallback);
+            lv_indev_set_scroll_limit(inputDevice, 6);
+            lv_indev_set_scroll_throw(inputDevice, 6);
+
+            Serial.println("[DISPLAY] LVGL touch input registered");
+        }
+    }
+
+    initialized = true;
+
+    Serial.println("[DISPLAY] LVGL 9 display initialized");
+    Serial.println("[DISPLAY] Hardware initialization complete");
+
+    return true;
+}
+
+void DisplayManager::loop()
+{
+    /*
+     * LVGL 9 handles its timers through lv_timer_handler().
+     * This manager intentionally does not call it here because
+     * main.cpp owns the LVGL event loop.
+     */
+}
+
+lv_display_t* DisplayManager::getDisplay() const
+{
+    return display;
+}
+
+bool DisplayManager::isInitialized() const
+{
+    return initialized;
+}
+
+void DisplayManager::flushCallback(
+    lv_display_t* display,
+    const lv_area_t* area,
+    uint8_t* px_map
+)
+{
+    if (instance == nullptr ||
+        instance->lcd == nullptr ||
+        area == nullptr ||
+        px_map == nullptr)
+    {
+        lv_display_flush_ready(display);
+        return;
+    }
+
+    const int32_t width =
+        area->x2 - area->x1 + 1;
+
+    const int32_t height =
+        area->y2 - area->y1 + 1;
+
+    const uint32_t pixelCount =
+        static_cast<uint32_t>(width * height);
+
+    lv_draw_sw_rgb565_swap(
+        px_map,
+        pixelCount
+    );
+
+    static uint32_t flushCount = 0;
+    const bool drawOk = instance->lcd->drawBitmap(
+        area->x1,
+        area->y1,
+        width,
+        height,
+        px_map,
+        -1
+    );
+
+    ++flushCount;
+    if (flushCount <= 8) {
+        Serial.printf(
+            "[LVGL-FLUSH] #%lu area=(%ld,%ld)-(%ld,%ld) size=%ldx%ld drawBitmap=%s\n",
+            static_cast<unsigned long>(flushCount),
+            static_cast<long>(area->x1),
+            static_cast<long>(area->y1),
+            static_cast<long>(area->x2),
+            static_cast<long>(area->y2),
+            static_cast<long>(width),
+            static_cast<long>(height),
+            drawOk ? "OK" : "FAILED"
+        );
+    }
+
+    lv_display_flush_ready(display);
+}
+
+#ifndef PULSEON_TOUCH_FLIP_X
+#define PULSEON_TOUCH_FLIP_X 1 // the touch X axis reads mirrored relative to the display
+#endif
+
+void DisplayManager::touchReadCallback(
+    lv_indev_t* indev,
+    lv_indev_data_t* data
+)
+{
+    if (instance == nullptr ||
+        instance->touch == nullptr)
+    {
+        data->state = LV_INDEV_STATE_RELEASED;
+        return;
+    }
+
+    instance->touch->readRawData(-1, -1, 30);
+
+    std::vector<TouchPoint> points;
+    instance->touch->getPoints(points);
+
+    if (points.empty())
+    {
+        instance->swallowTouch = false;
+        data->state = LV_INDEV_STATE_RELEASED;
+        return;
+    }
+
+    const TouchPoint& point = points[0];
+
+    static lv_point_t lastPoint = {0, 0};
+    int32_t px = static_cast<int32_t>(point.x);
+    int32_t py = static_cast<int32_t>(point.y);
+    if (px < 0 || px > 239 || py < 0 || py > 319)
+    {
+        // The controller sometimes returns a garbage point; hold the last good one.
+        const bool block = instance->swallowTouch ||
+                           instance->screenState == ScreenState::Off;
+        data->state = block ? LV_INDEV_STATE_RELEASED : LV_INDEV_STATE_PRESSED;
+        data->point = lastPoint;
+        return;
+    }
+
+    // Valid touch: counts as activity and wakes the screen.
+    instance->lastActivityMs = millis();
+    if (instance->screenState != ScreenState::Awake)
+    {
+        if (instance->screenState == ScreenState::Off)
+        {
+            instance->swallowTouch = true;   // eat the waking tap
+        }
+        instance->wake();
+    }
+    if (instance->swallowTouch)
+    {
+        data->state = LV_INDEV_STATE_RELEASED;
+        return;
+    }
+    if (PULSEON_TOUCH_FLIP_X)
+    {
+        px = 239 - px;
+    }
+    lastPoint.x = px;
+    lastPoint.y = py;
+
+    data->state = LV_INDEV_STATE_PRESSED;
+    data->point.x = px;
+    data->point.y = py;
+
+    static uint32_t lastTouchLogMs = 0;
+    if (millis() - lastTouchLogMs > 150)
+    {
+        lastTouchLogMs = millis();
+        Serial.printf("[TOUCH] raw press x=%d y=%d\n",
+                      static_cast<int>(point.x), static_cast<int>(point.y));
+    }
+
+    (void)indev;
+}
+
+void DisplayManager::applyBrightness(uint8_t percent)
+{
+    if (backlight != nullptr)
+    {
+        backlight->setBrightness(percent);
+    }
+}
+
+void DisplayManager::setBrightness(uint8_t percent)
+{
+    if (percent > 100)
+    {
+        percent = 100;
+    }
+    userBrightness = percent;
+    if (screenState == ScreenState::Awake)
+    {
+        applyBrightness(percent);
+    }
+}
+
+void DisplayManager::wake()
+{
+    lastActivityMs = millis();
+    if (screenState != ScreenState::Awake)
+    {
+        screenState = ScreenState::Awake;
+        applyBrightness(userBrightness);
+        Serial.println("[DISPLAY] wake");
+    }
+}
+
+void DisplayManager::setSleepEnabled(bool enabled)
+{
+    sleepEnabled = enabled;
+    if (!enabled)
+    {
+        wake();
+    }
+}
+
+void DisplayManager::setSleepTimeouts(uint32_t dimMs, uint32_t offMs)
+{
+    dimAfterMs = dimMs;
+    offAfterMs = offMs;
+}
+
+void DisplayManager::holdAwake(bool hold)
+{
+    if (instance != nullptr)
+    {
+        instance->holdAwakeFlag = hold;
+    }
+}
+
+void DisplayManager::wakeNow()
+{
+    if (instance != nullptr)
+    {
+        instance->wake();
+    }
+}
+
+void DisplayManager::sleepTimerCb(lv_timer_t* timer)
+{
+    (void)timer;
+    if (instance == nullptr || !instance->sleepEnabled)
+    {
+        return;
+    }
+
+    if (instance->holdAwakeFlag)
+    {
+        if (instance->screenState != ScreenState::Awake)
+        {
+            instance->wake();
+        }
+        instance->lastActivityMs = millis();
+        return;
+    }
+
+    const uint32_t idle = millis() - instance->lastActivityMs;
+
+    if (instance->screenState == ScreenState::Awake && idle >= instance->dimAfterMs)
+    {
+        instance->screenState = ScreenState::Dimmed;
+        uint8_t dim = instance->userBrightness * 15 / 100;
+        if (dim < 5) dim = 5;
+        if (dim > instance->userBrightness) dim = instance->userBrightness;
+        instance->applyBrightness(dim);
+        Serial.println("[DISPLAY] dim");
+    }
+    else if (instance->screenState == ScreenState::Dimmed && idle >= instance->offAfterMs)
+    {
+        instance->screenState = ScreenState::Off;
+        instance->applyBrightness(0);
+        Serial.println("[DISPLAY] off");
+    }
+}
