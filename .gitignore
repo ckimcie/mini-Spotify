@@ -1,0 +1,5 @@
+.pio/
+.vscode/
+include/secrets.h
+platformio.pulseon.ini.ref
+__pycache__/
