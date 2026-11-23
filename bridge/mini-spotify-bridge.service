@@ -1,0 +1,12 @@
+[Unit]
+Description=mini-Spotify PC bridge
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/python3 %h/my-project/mini-Spotify/bridge/mini_player_bridge.py
+Restart=on-failure
+RestartSec=3
+EnvironmentFile=-%h/.config/mini-spotify-bridge.env
+
+[Install]
+WantedBy=default.target
