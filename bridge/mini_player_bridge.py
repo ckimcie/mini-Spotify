@@ -64,8 +64,37 @@ def get_state():
         "progressMs": int(num(pos) / 1000),
         "volume": int(round(num(vol, -0.01) * 100)) if vol != "" else -1,
         "device": name,
-        "artId": hashlib.sha1(art.encode()).hexdigest()[:10] if art else "",
+        "artId": hashlib.sha1((art + '|' + title + '|' + artist).encode()).hexdigest()[:10] if art else "",
     }
+
+
+def remap_art_url(url):
+    """Browsers installed as snaps keep their /tmp private; look there too."""
+    if url.startswith("file://"):
+        import glob
+        path = urllib.parse.unquote(url[7:])
+        if not os.path.exists(path):
+            hits = glob.glob("/tmp/snap-private-tmp/snap.*/tmp/" + os.path.basename(path))
+            if hits:
+                return "file://" + hits[0]
+    return url
+
+
+def fallback_art():
+    """Browser art file unreadable (snap sandbox): look the cover up by title/artist."""
+    try:
+        _, title = ctl("metadata", "title")
+        _, artist = ctl("metadata", "artist")
+        term = urllib.parse.quote((artist + " " + title).strip())
+        api = "https://itunes.apple.com/search?entity=song&limit=1&term=" + term
+        with urllib.request.urlopen(api, timeout=5) as r:
+            res = json.loads(r.read().decode())["results"]
+        if not res:
+            return None
+        img = res[0]["artworkUrl100"].replace("100x100bb", "300x300bb")
+        return load_art(img)
+    except Exception:
+        return None
 
 
 def load_art(url):
@@ -141,7 +170,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, json.dumps(get_state()).encode())
         elif path == "/art":
             rc, url = ctl("metadata", "mpris:artUrl")
-            data = load_art(url) if rc == 0 and url else None
+            data = (load_art(remap_art_url(url)) if rc == 0 and url else None) or fallback_art()
             if data:
                 self._send(200, data, "image/jpeg")
             else:
