@@ -9,7 +9,8 @@ Works with any MPRIS player: the Spotify desktop app (free plan is fine), browse
 Env: MINI_PLAYER (default "spotify,%any"), MINI_PORT (8765), MINI_TOKEN (optional shared secret,
 sent by the device as X-Token). Optional: `pip install pillow` converts PNG/odd art to JPEG.
 """
-import hashlib, io, json, os, socket, subprocess, threading, urllib.parse, urllib.request
+import base64, hashlib, io, json, os, re, socket, subprocess, threading, time
+import urllib.error, urllib.parse, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PLAYER = os.environ.get("MINI_PLAYER", "spotify,%any")
@@ -145,6 +146,59 @@ def run_cmd(c, v):
     return True
 
 
+
+SP_ID = os.environ.get("SPOTIFY_CLIENT_ID", "")
+SP_SECRET = os.environ.get("SPOTIFY_CLIENT_SECRET", "")
+_tok = {"v": "", "exp": 0.0}
+_tok_lock = threading.Lock()
+
+
+def spotify_token():
+    """Client-credentials token, cached until shortly before it expires."""
+    with _tok_lock:
+        if _tok["v"] and time.time() < _tok["exp"] - 30:
+            return _tok["v"]
+        auth = base64.b64encode(("%s:%s" % (SP_ID, SP_SECRET)).encode()).decode()
+        req = urllib.request.Request(
+            "https://accounts.spotify.com/api/token", data=b"grant_type=client_credentials",
+            headers={"Authorization": "Basic " + auth, "Content-Type": "application/x-www-form-urlencoded"})
+        with urllib.request.urlopen(req, timeout=6) as r:
+            d = json.loads(r.read().decode())
+        _tok["v"] = d["access_token"]
+        _tok["exp"] = time.time() + int(d.get("expires_in", 3600))
+        return _tok["v"]
+
+
+def search_tracks(q):
+    q = q.strip()[:80]
+    if not q:
+        return {"results": []}
+    if not (SP_ID and SP_SECRET):
+        return {"error": "Set SPOTIFY_CLIENT_ID/SECRET on the PC"}
+    try:
+        url = "https://api.spotify.com/v1/search?type=track&limit=8&q=" + urllib.parse.quote(q)
+        req = urllib.request.Request(url, headers={"Authorization": "Bearer " + spotify_token()})
+        with urllib.request.urlopen(req, timeout=6) as r:
+            items = json.loads(r.read().decode()).get("tracks", {}).get("items", [])
+        return {"results": [
+            {"id": t["id"], "title": t.get("name", ""),
+             "artist": ", ".join(a.get("name", "") for a in t.get("artists", [])[:2])}
+            for t in items if t and t.get("id")]}
+    except urllib.error.HTTPError as e:
+        if e.code in (400, 401):
+            _tok["exp"] = 0.0
+        return {"error": "Spotify error %d" % e.code}
+    except Exception:
+        return {"error": "Search failed"}
+
+
+def play_track(track_id):
+    if not re.fullmatch(r"[A-Za-z0-9]{22}", track_id or ""):
+        return False
+    rc, _ = ctl("open", "spotify:track:" + track_id)
+    return rc == 0
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -168,6 +222,9 @@ class Handler(BaseHTTPRequestHandler):
         path = urllib.parse.urlparse(self.path).path
         if path == "/state":
             self._send(200, json.dumps(get_state()).encode())
+        elif path == "/search":
+            q = (urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get("q") or [""])[0]
+            self._send(200, json.dumps(search_tracks(q)).encode())
         elif path == "/art":
             rc, url = ctl("metadata", "mpris:artUrl")
             data = (load_art(remap_art_url(url)) if rc == 0 and url else None) or fallback_art()
@@ -182,6 +239,9 @@ class Handler(BaseHTTPRequestHandler):
         if not self._authed():
             return
         u = urllib.parse.urlparse(self.path)
+        if u.path == "/play":
+            tid = (urllib.parse.parse_qs(u.query).get("id") or [""])[0]
+            return self._send(200 if play_track(tid) else 400, b"{}")
         if u.path != "/cmd":
             return self._send(404, b"")
         q = urllib.parse.parse_qs(u.query)
