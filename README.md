@@ -1,5 +1,19 @@
 # mini-Spotify (PC bridge edition)
 
+<!-- mini-spotify-images:begin -->
+## Screenshots
+
+Renders of the 240x320 display on the Viewe 2.8" ESP32-S3 board. These are mockups drawn from the firmware layout, with placeholder art and sample song names, not photos of the device.
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/images/player-screen-mockup.png" width="240" alt="Player screen mockup"><br><sub>Player screen</sub></td>
+    <td align="center"><img src="docs/images/search-screen-mockup.png" width="240" alt="Search screen mockup"><br><sub>Search screen</sub></td>
+    <td align="center"><img src="docs/images/search-results-mockup.png" width="240" alt="Search results mockup"><br><sub>Search results</sub></td>
+  </tr>
+</table>
+<!-- mini-spotify-images:end -->
+
 Now-playing display + remote for the Viewe 2.8" ESP32-S3 (PlatformIO, LVGL 9.5).
 No Spotify account/API needed: a small script on your PC reads the desktop player over MPRIS
 (`playerctl`) and the ESP32 talks to it over Wi-Fi. Works with the Spotify desktop app on the
