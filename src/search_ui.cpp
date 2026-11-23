@@ -8,6 +8,10 @@
 #include "secrets.h"
 #include "config.h"
 
+#ifndef SHOW_SEARCH_BUTTON
+#define SHOW_SEARCH_BUTTON 0   // 1 = show the search button on the player screen
+#endif
+
 namespace search_ui {
 namespace {
 
@@ -129,7 +133,7 @@ void layout(bool keyboardShown) {
 
 void closeSearch() {
   lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_remove_flag(openBtn, LV_OBJ_FLAG_HIDDEN);
+  if (SHOW_SEARCH_BUTTON) lv_obj_remove_flag(openBtn, LV_OBJ_FLAG_HIDDEN);
   if (prevScr) lv_screen_load(prevScr);
 }
 
@@ -252,6 +256,7 @@ void begin() {
   lv_obj_set_style_text_color(l, lv_color_hex(0xE8F1EE), 0);
   lv_obj_center(l);
   lv_obj_add_event_cb(openBtn, [](lv_event_t*) { openSearch(); }, LV_EVENT_CLICKED, nullptr);
+  if (!SHOW_SEARCH_BUTTON) lv_obj_add_flag(openBtn, LV_OBJ_FLAG_HIDDEN);
 
   lv_timer_create(pollCb, 150, nullptr);
 }
