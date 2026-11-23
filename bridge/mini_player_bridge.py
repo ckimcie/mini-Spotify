@@ -91,7 +91,7 @@ def fallback_art():
             res = json.loads(r.read().decode())["results"]
         if not res:
             return None
-        img = res[0]["artworkUrl100"].replace("100x100bb", "300x300bb")
+        img = res[0]["artworkUrl100"].replace("100x100bb", "600x600bb")
         return load_art(img)
     except Exception:
         return None
@@ -114,7 +114,7 @@ def load_art(url):
     if Image is not None:
         try:
             im = Image.open(io.BytesIO(raw)).convert("RGB")
-            im.thumbnail((300, 300))
+            im.thumbnail((480, 480))
             buf = io.BytesIO()
             im.save(buf, "JPEG", quality=82, progressive=False)
             raw = buf.getvalue()

@@ -19,3 +19,9 @@ Then `pio run -t upload && pio device monitor`. The PC and the board must be on 
 ## Controls
 Prev / play-pause / next, seek slider (release to seek), volume slider.
 The bridge is plain HTTP on your LAN: anyone on it can control playback unless you set `MINI_TOKEN`.
+
+## PC bridge service
+
+Run `bridge/install-service.sh` to start the bridge at login. Logs: `journalctl --user -u mini-spotify-bridge -f`.
+Set the bridge address from the board: gear icon, Wi-Fi setup, then the "PC bridge address" field.
+The `BRIDGE_HOST` value in `include/secrets.h` is used when nothing is saved.

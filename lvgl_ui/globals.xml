@@ -1,0 +1,20 @@
+<globals>
+  <consts>
+    <px name="screen_w" value="240"/>
+    <px name="screen_h" value="320"/>
+    <px name="art_size" value="240"/>
+    <px name="fade_h" value="120"/>
+    <px name="btn_row_y" value="252"/>
+    <color name="c_bg" value="0x0A0F0E"/>
+    <color name="c_panel" value="0x16201E"/>
+    <color name="c_text" value="0xE8F1EE"/>
+    <color name="c_dim" value="0x8AA39C"/>
+    <color name="c_accent" value="0x1ED760"/>
+    <color name="c_track" value="0x2A3835"/>
+    <color name="c_black" value="0x000000"/>
+  </consts>
+  <styles>
+    <style name="slider_indicator" bg_color="#c_accent"/>
+    <style name="slider_knob" bg_color="#c_text"/>
+  </styles>
+</globals>

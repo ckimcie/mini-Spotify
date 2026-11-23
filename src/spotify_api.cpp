@@ -6,6 +6,8 @@
 #include <JPEGDEC.h>
 #include "secrets.h"
 #include "config.h"
+#include "bridge_cfg.h"
+#include "bridge_cfg.h"
 
 namespace sp_api {
 namespace {
@@ -34,7 +36,7 @@ void setStatus(const char* s) {
 }
 
 bool open(const String& path) {
-  if (!http.begin(client, BRIDGE_HOST, BRIDGE_PORT, path)) return false;
+  if (!http.begin(client, bridge_cfg::host(), BRIDGE_PORT, path)) return false;
   if (BRIDGE_TOKEN[0]) http.addHeader("X-Token", BRIDGE_TOKEN);
   return true;
 }
