@@ -7,4 +7,4 @@
 #define BRIDGE_TOKEN ""        // must match MINI_TOKEN on the PC if you set one
 #endif
 #define POLL_MS 1000
-#define MAX_ART_BYTES 120000
+#define MAX_ART_BYTES 250000

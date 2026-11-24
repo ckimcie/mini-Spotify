@@ -11,6 +11,7 @@
 
 void setup() {
   Serial.begin(115200);
+  Serial.setTxTimeoutMs(0);   // never block the UI waiting for a USB serial host
 
   if (!hal_display_begin()) {
     Serial.println("display init failed");

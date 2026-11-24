@@ -34,6 +34,7 @@ void beginSta() {
   const char* pass = settings::hasWifi() ? settings::get().pass : WIFI_PASS;
   if (!ssid[0]) return;
   WiFi.begin(ssid, pass);
+  WiFi.setSleep(false);   // modem sleep adds 100-300 ms latency spikes to every request
   beganAt = millis();
 }
 
