@@ -81,7 +81,7 @@ def remap_art_url(url):
     return url
 
 
-def fallback_art():
+def _fallback_art_uncached():
     """Browser art file unreadable (snap sandbox): look the cover up by title/artist."""
     try:
         _, title = ctl("metadata", "title")
@@ -199,7 +199,37 @@ def play_track(track_id):
     return rc == 0
 
 
+_warm = {"id": ""}
+_fb_cache = {}
+
+
+def fallback_art():
+    """Cached wrapper: the online cover lookup is slow, so remember it per track."""
+    _, ti = ctl("metadata", "title")
+    _, ar = ctl("metadata", "artist")
+    key = ar + "|" + ti
+    with _art_lock:
+        if key in _fb_cache:
+            return _fb_cache[key]
+    data = _fallback_art_uncached()
+    if data:
+        with _art_lock:
+            if len(_fb_cache) > 8:
+                _fb_cache.clear()
+            _fb_cache[key] = data
+    return data
+
+
+def current_art():
+    rc, url = ctl("metadata", "mpris:artUrl")
+    return (load_art(remap_art_url(url)) if rc == 0 and url else None) or fallback_art()
+
+
 class Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"   # keep-alive: the board reuses one connection
+    timeout = 30
+    disable_nagle_algorithm = True   # send header and body without the 40 ms Nagle/delayed-ACK stall
+
     def log_message(self, *a):
         pass
 
@@ -221,7 +251,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         path = urllib.parse.urlparse(self.path).path
         if path == "/state":
-            self._send(200, json.dumps(get_state()).encode())
+            st = get_state()
+            aid = st.get("artId", "")
+            if aid and aid != _warm["id"]:      # new track: prepare the cover before the board asks for it
+                _warm["id"] = aid
+                threading.Thread(target=current_art, daemon=True).start()
+            self._send(200, json.dumps(st).encode())
         elif path == "/search":
             q = (urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get("q") or [""])[0]
             self._send(200, json.dumps(search_tracks(q)).encode())
