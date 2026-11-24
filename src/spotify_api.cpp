@@ -202,7 +202,7 @@ void netTask(void*) {
 void begin() {
   mtx = xSemaphoreCreateMutex();
   cmdQ = xQueueCreate(8, sizeof(CmdMsg));
-  http.setReuse(false);
+  http.setReuse(true);
   http.setConnectTimeout(2000);
   http.setTimeout(4000);
   xTaskCreatePinnedToCore(netTask, "spnet", 12288, nullptr, 1, nullptr, 0);
