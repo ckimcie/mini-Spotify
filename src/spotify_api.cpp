@@ -165,7 +165,7 @@ void doPoll() {
 
     if (aid[0] && strcmp(aid, shownArtId) != 0) {
       strlcpy(shownArtId, aid, sizeof shownArtId);   // set first so a failure isn't retried every poll
-      { uint32_t ta = millis(); fetchArt(); Serial.printf("[DIAG] art fetch+decode %ums\n", (unsigned)(millis() - ta)); }
+      fetchArt();
     }
   } else if (code == 401) {
     http.end();
@@ -187,12 +187,7 @@ void netTask(void*) {
     if ((int32_t)(now - nextPollAt) >= 0) {
       nextPollAt = now + POLL_MS;
       if (WiFi.status() != WL_CONNECTED) setStatus("Connecting Wi-Fi...");
-      else {
-        uint32_t t0 = millis();
-        doPoll();
-        uint32_t dt = millis() - t0;
-        if (dt > 400) Serial.printf("[DIAG] slow poll %ums\n", (unsigned)dt);
-      }
+      else doPoll();
     }
   }
 }

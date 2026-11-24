@@ -28,17 +28,6 @@ void setup() {
   if (settings::get().mode == settings::MODE_BLE) ble_remote::setEnabled(true);
 }
 
-static void diagNote(uint32_t ms) {
-  static uint32_t worst = 0, last = 0, n = 0;
-  if (ms > worst) worst = ms;
-  n++;
-  if (millis() - last >= 5000) {
-    Serial.printf("[DIAG] loops=%u worst_hal_loop=%ums heap=%u psram=%u rssi=%d\n",
-                  (unsigned)n, (unsigned)worst, (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getFreePsram(), WiFi.RSSI());
-    worst = 0; n = 0; last = millis();
-  }
-}
-
 void loop() {
   static bool announced = false;
   if (!announced && WiFi.status() == WL_CONNECTED) {
@@ -46,6 +35,6 @@ void loop() {
     Serial.printf("IP: %s -> bridge %s\n", WiFi.localIP().toString().c_str(), BRIDGE_HOST);
   }
   wifi_setup::loop();
-  { uint32_t _t = millis(); hal_loop(); diagNote(millis() - _t); }
+  hal_loop();
   delay(5);
 }
